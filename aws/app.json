@@ -1,0 +1,51 @@
+{
+    "builders": [
+      {
+        "type": "amazon-ebs",
+        "profile": "{{user `profile`}}",
+        "vpc_id": "{{user `vpc_id`}}",
+        "subnet_id": "{{user `subnet_id`}}",
+        "region": "us-east-1",
+        "ami_name": "app-{{isotime `2006-01-02`}}",
+        "source_ami": "ami-08d4ac5b634553e16",
+        "instance_type": "t2.micro",
+        "ssh_username": "{{user `username`}}"
+      }
+    ],
+    "provisioners": [
+      {
+        "type": "file",
+        "source": "./ansible/files/",
+        "destination": "/home/{{user `username`}}"
+      },
+      {
+        "type": "shell",
+        "inline": [
+          "sudo apt-get install -y software-properties-common",
+          "sudo apt-add-repository --yes --update ppa:ansible/ansible",
+          "sudo apt-get update",
+          "sudo apt-get install -y ansible"
+        ]
+      },
+      {
+        "type": "ansible-local",
+        "playbook_file": "./ansible/playbook.yml",
+        "role_paths": [
+          "./ansible/roles/git",
+          "./ansible/roles/python",
+          "./ansible/roles/pm2",
+          "./ansible/roles/install-app"
+        ],
+        "extra_arguments": [
+          "--vault-password-file",
+          "/home/{{user `username`}}/.ansible_vault.pass"
+        ]
+      }
+    ],
+    "post-processors": [
+      {
+        "type": "manifest",
+        "output": "output.json"
+      }
+    ]
+  }

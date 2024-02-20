@@ -7,3 +7,5 @@ fi
 eval "$(zoxide init zsh)" # pkgx
 eval "$(direnv hook zsh)" # pkgx
 eval "$(fnm env --use-on-cd)" # pkgx
+eval "$(rbenv init - zsh)"
+
