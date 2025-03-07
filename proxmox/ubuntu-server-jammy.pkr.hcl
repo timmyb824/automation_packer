@@ -1,7 +1,8 @@
 # Ubuntu Server jammy
 # ---
 # Packer Template to create an Ubuntu Server (jammy) on Proxmox
-# `packer build -var-file="credentials.pkr.hcl" ubuntu-server-jammy-X.pkr.hcl`
+# Install Plugins: `packer plugins install github.com/hashicorp/proxmox`
+# Build Template: `packer build -var-file="credentials.pkr.hcl" ubuntu-server-jammy-X.pkr.hcl`
 
 packer {
   required_plugins {
@@ -34,23 +35,33 @@ source "proxmox-iso" "ubuntu-server-jammy" {
     username = "${var.proxmox_api_token_id}"
     token = "${var.proxmox_api_token_secret}"
     # (Optional) Skip TLS Verification
-    # insecure_skip_tls_verify = true
+    insecure_skip_tls_verify = true
 
     # VM General Settings
-    node = "pve2"
-    vm_id = "4201"
-    vm_name = "ubuntu-2204-server-fully-provisioned"
-    template_description = "Ubuntu Server jammy Image fully provisioned with cloud-init and personalization"
+    node = "pve3"
+    vm_id = "444"
+    vm_name = "ubuntu-2204-server"
+    template_description = "Ubuntu Server jammy Image used for Ansible testing"
 
-    # VM OS Settings
-    # (Option 1) Local ISO File
-    # iso_file = "local:iso/ubuntu-22.04-live-server-amd64.iso"
-    # - or -
-    # (Option 2) Download ISO
-    iso_url = "https://releases.ubuntu.com/22.04/ubuntu-22.04.3-live-server-amd64.iso"
-    iso_checksum = "a4acfda10b18da50e2ec50ccaf860d7f20b389df8765611142305c0e911d16fd"
-    iso_storage_pool = "local"
-    unmount_iso = true
+    // # VM OS Settings
+    // # (Option 1) Local ISO File
+    // iso_file = "synology-nas:iso/ubuntu-22.04-live-server-amd64.iso"
+    // # - or -
+    // # (Option 2) Download ISO
+    // // iso_url = "https://releases.ubuntu.com/jammy/ubuntu-22.04.5-live-server-amd64.iso"
+    // // iso_checksum = "9bc6028870aef3f74f4e16b900008179e78b130e6b0b9a140635434a46aa98b0"
+    // iso_storage_pool = "local"
+    // unmount_iso = true
+
+
+    boot_iso {
+      type = "scsi"
+      iso_file = "synology-nas:iso/ubuntu-22.04-live-server-amd64.iso"
+      unmount = true
+    //   iso_checksum = "sha512:9bc6028870aef3f74f4e16b900008179e78b130e6b0b9a140635434a46aa98b0"
+    }
+
+
 
     # VM System Settings
     qemu_agent = true
@@ -59,9 +70,9 @@ source "proxmox-iso" "ubuntu-server-jammy" {
     scsi_controller = "virtio-scsi-pci"
 
     disks {
-        disk_size = "20G"
+        disk_size = "32G"
         format = "raw"
-        storage_pool = "local-zfs2"
+        storage_pool = "local-zfs3"
         type = "virtio"
     }
 
@@ -69,7 +80,7 @@ source "proxmox-iso" "ubuntu-server-jammy" {
     cores = "2"
 
     # VM Memory Settings
-    memory = "4096" # 4GB
+    memory = "2048"
 
     # VM Network Settings
     network_adapters {
@@ -80,7 +91,7 @@ source "proxmox-iso" "ubuntu-server-jammy" {
 
     # VM Cloud-Init Settings
     cloud_init = true
-    cloud_init_storage_pool = "local-zfs2"
+    cloud_init_storage_pool = "local-zfs3"
 
     # PACKER Boot Commands
     boot_command = [
@@ -146,18 +157,18 @@ build {
         inline = [ "sudo cp /tmp/99-pve.cfg /etc/cloud/cloud.cfg.d/99-pve.cfg" ]
     }
 
-    # Upload everything in the dotfiles directory to the VM Template
-    provisioner "file" {
-        source = "files/dotfiles"
-        destination = "/home/tbryant"
-    }
+    // # Upload everything in the dotfiles directory to the VM Template
+    // provisioner "file" {
+    //     source = "files/dotfiles"
+    //     destination = "/home/tbryant"
+    // }
 
-    # Provisioning the VM Template with Persoanlization Installation
-    provisioner "shell" {
-        inline = [
-            "cd /home/tbryant/dotfiles",
-            "chmod +x provision.sh",
-            "./provision.sh"
-        ]
-    }
+    // # Provisioning the VM Template with Persoanlization Installation
+    // provisioner "shell" {
+    //     inline = [
+    //         "cd /home/tbryant/dotfiles",
+    //         "chmod +x provision.sh",
+    //         "./provision.sh"
+    //     ]
+    // }
 }
