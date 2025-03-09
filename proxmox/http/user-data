@@ -28,18 +28,15 @@ autoinstall:
         lock-passwd: false
         sudo: ALL=(ALL) NOPASSWD:ALL
         shell: /bin/bash
-        # passwd: password123
-        # - or -
+        # passwd: password123 # - or -
         ssh_authorized_keys:
           - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINSzbKSzp5tG3vytJiWHlBUV9f1cmqzIWY3CH9Je+tI0 timothybryant3@gmail.com
-    network:
-      version: 2
-      ethernets:
-        eth0:
-          dhcp4: true
-          # or for static IP:
-          # addresses:
-          #   - 192.168.86.133/24
-          # gateway4: 192.168.86.1
-          # nameservers:
-          #   addresses: [8.8.8.8, 8.8.4.4]
+  network:
+    version: 2
+    ethernets:
+      ens18:
+        dhcp4: true
+      enp0s18:
+        dhcp4: true
+      eth0:
+        dhcp4: true
