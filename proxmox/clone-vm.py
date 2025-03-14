@@ -9,7 +9,10 @@ from datetime import datetime
 from proxmoxer import ProxmoxAPI
 from typing import Optional
 
-def wait_for_task(proxmox: ProxmoxAPI, node: str, upid: str, timeout: int = 1200) -> bool:
+
+def wait_for_task(
+    proxmox: ProxmoxAPI, node: str, upid: str, timeout: int = 1200
+) -> bool:
     """Wait for a task to complete, showing progress for clone operations."""
     start_time = time.time()
     while time.time() - start_time < timeout:
@@ -24,16 +27,13 @@ def wait_for_task(proxmox: ProxmoxAPI, node: str, upid: str, timeout: int = 1200
         # Show progress for clone operations
         if "type" in status and status["type"] == "qmclone":
             with contextlib.suppress(Exception):
-                if (
-                    log_entries := proxmox.nodes(node)
-                    .tasks(upid)
-                    .log.get(limit=1)
-                ):
+                if log_entries := proxmox.nodes(node).tasks(upid).log.get(limit=1):
                     print(f"\r{log_entries[-1]['t']}", end="", flush=True)
         time.sleep(1)
 
     print("\nTimeout waiting for task completion")
     return False
+
 
 def retry_api_call(func, *args, max_retries=3, **kwargs):
     """Retry an API call with exponential backoff."""
@@ -43,9 +43,12 @@ def retry_api_call(func, *args, max_retries=3, **kwargs):
         except Exception as e:
             if attempt == max_retries - 1:
                 raise
-            wait_time = 2 ** attempt
-            print(f"API call failed, retrying in {wait_time} seconds... (Error: {str(e)})")
+            wait_time = 2**attempt
+            print(
+                f"API call failed, retrying in {wait_time} seconds... (Error: {str(e)})"
+            )
             time.sleep(wait_time)
+
 
 def get_vm_config(proxmox, node, vmid):
     """Get VM configuration including disk information."""
@@ -56,33 +59,47 @@ def get_vm_config(proxmox, node, vmid):
         print(f"Error getting VM config: {str(e)}")
         return None
 
+
 def find_main_disk(config):
     """Find the main disk in VM config, excluding CD-ROM drives."""
     # First look for virtio disks
     for key, value in config.items():
-        if key.startswith('virtio') and key.endswith('0') and not value.endswith(',media=cdrom'):
+        if (
+            key.startswith("virtio")
+            and key.endswith("0")
+            and not value.endswith(",media=cdrom")
+        ):
             return key
 
     # Then look for scsi disks
     for key, value in config.items():
-        if key.startswith('scsi') and key.endswith('0') and not value.endswith(',media=cdrom'):
+        if (
+            key.startswith("scsi")
+            and key.endswith("0")
+            and not value.endswith(",media=cdrom")
+        ):
             return key
 
     # Then sata disks
     for key, value in config.items():
-        if key.startswith('sata') and key.endswith('0') and not value.endswith(',media=cdrom'):
+        if (
+            key.startswith("sata")
+            and key.endswith("0")
+            and not value.endswith(",media=cdrom")
+        ):
             return key
 
     return next(
         (
             key
             for key, value in config.items()
-            if key.startswith('ide')
-            and key.endswith('0')
-            and not value.endswith(',media=cdrom')
+            if key.startswith("ide")
+            and key.endswith("0")
+            and not value.endswith(",media=cdrom")
         ),
         None,
     )
+
 
 def set_vm_resources(proxmox, node, vmid, memory, cores, disk_size):
     """Set VM resources after cloning."""
@@ -97,29 +114,31 @@ def set_vm_resources(proxmox, node, vmid, memory, cores, disk_size):
         disk_id = find_main_disk(config)
         if not disk_id:
             print("Could not find main disk in VM configuration")
-            print("Available disks:", {k: v for k, v in config.items() if k.startswith(('ide', 'sata', 'scsi', 'virtio'))})
+            print(
+                "Available disks:",
+                {
+                    k: v
+                    for k, v in config.items()
+                    if k.startswith(("ide", "sata", "scsi", "virtio"))
+                },
+            )
             return False
 
         print(f"Setting VM resources (disk: {disk_id})...")
 
         # Set memory and CPU
-        proxmox.nodes(node).qemu(vmid).config.put(
-            memory=memory,
-            cores=cores
-        )
+        proxmox.nodes(node).qemu(vmid).config.put(memory=memory, cores=cores)
 
         # Resize disk if specified
         if disk_size:
-            proxmox.nodes(node).qemu(vmid).resize.put(
-                disk=disk_id,
-                size=disk_size
-            )
+            proxmox.nodes(node).qemu(vmid).resize.put(disk=disk_id, size=disk_size)
 
         return True
 
     except Exception as e:
         print(f"Error setting VM resources: {str(e)}")
         return False
+
 
 def clone_vm(
     proxmox: ProxmoxAPI,
@@ -132,23 +151,26 @@ def clone_vm(
     disk_size: str = None,
     ip_address: str = None,
     gateway: str = None,
-    nameserver: str = None
+    nameserver: str = None,
 ):
     """Clone a VM from a template."""
+    if not template_id:
+        print("Error: Missing template ID")
+        return False
+
     print(f"Cloning VM {template_id} to {target_id} ({name})...")
 
     try:
         # Clone the VM
         clone_params = {
-            'newid': target_id,
-            'name': name,
-            'full': 1,  # Full clone
-            'description': f'Created by clone-vm.py on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'
+            "newid": target_id,
+            "name": name,
+            "full": 1,  # Full clone
+            "description": f'Created by clone-vm.py on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}',
         }
 
         task_id = retry_api_call(
-            proxmox.nodes(node).qemu(template_id).clone.create,
-            **clone_params
+            proxmox.nodes(node).qemu(template_id).clone.create, **clone_params
         )
     except Exception as e:
         print(f"Error cloning VM: {str(e)}")
@@ -165,10 +187,10 @@ def clone_vm(
             ipconfig = f"ip={ip_address}"
             if gateway:
                 ipconfig += f",gw={gateway}"
-            config = {'ipconfig0': ipconfig}
+            config = {"ipconfig0": ipconfig}
             # Add nameserver if provided
             if nameserver:
-                config['nameserver'] = nameserver
+                config["nameserver"] = nameserver
 
             if config:
                 proxmox.nodes(node).qemu(target_id).config.put(**config)
@@ -183,9 +205,7 @@ def clone_vm(
     # Start the VM
     print("\nStarting VM...")
     try:
-        retry_api_call(
-            proxmox.nodes(node).qemu(target_id).status.start.post
-        )
+        retry_api_call(proxmox.nodes(node).qemu(target_id).status.start.post)
     except Exception as e:
         print(f"Error starting VM: {str(e)}")
         return False
@@ -204,6 +224,7 @@ def clone_vm(
             print(f"- Nameserver: {nameserver}")
     return True
 
+
 def destroy_vm(proxmox, node, vmid):
     """Destroy a VM with safety checks and cleanup."""
     try:
@@ -214,14 +235,16 @@ def destroy_vm(proxmox, node, vmid):
             return False
 
         # Confirm destruction
-        vm_name = status.get('name', str(vmid))
-        confirm = input(f"\nWARNING: You are about to destroy VM {vm_name} (ID: {vmid}).\nThis action cannot be undone!\nType 'yes' to confirm: ")
-        if confirm.lower() != 'yes':
+        vm_name = status.get("name", str(vmid))
+        confirm = input(
+            f"\nWARNING: You are about to destroy VM {vm_name} (ID: {vmid}).\nThis action cannot be undone!\nType 'yes' to confirm: "
+        )
+        if confirm.lower() != "yes":
             print("Destruction cancelled")
             return False
 
         # Stop VM if running
-        if status['status'] == 'running':
+        if status["status"] == "running":
             print(f"Stopping VM {vm_name}...")
             proxmox.nodes(node).qemu(vmid).status.stop.post()
 
@@ -229,7 +252,7 @@ def destroy_vm(proxmox, node, vmid):
             for _ in range(30):  # 30 second timeout
                 time.sleep(1)
                 current_status = proxmox.nodes(node).qemu(vmid).status.current.get()
-                if current_status['status'] == 'stopped':
+                if current_status["status"] == "stopped":
                     break
             else:
                 print("Warning: VM did not stop gracefully, forcing destruction")
@@ -237,8 +260,8 @@ def destroy_vm(proxmox, node, vmid):
         # Destroy VM with cleanup options
         print(f"Destroying VM {vm_name}...")
         params = {
-            'purge': 1,                          # Remove from all job configurations
-            'destroy-unreferenced-disks': 1      # Destroy unreferenced disks
+            "purge": 1,  # Remove from all job configurations
+            "destroy-unreferenced-disks": 1,  # Destroy unreferenced disks
         }
         proxmox.nodes(node).qemu(vmid).delete(**params)
         print(f"VM {vm_name} has been destroyed")
@@ -247,6 +270,7 @@ def destroy_vm(proxmox, node, vmid):
     except Exception as e:
         print(f"Error destroying VM: {str(e)}")
         return False
+
 
 def get_api_url(host: str) -> str:
     """Format the API URL correctly, handling both hostnames and IPs."""
@@ -259,42 +283,61 @@ def get_api_url(host: str) -> str:
 
     return host
 
-def main():
-    parser = argparse.ArgumentParser(description='Clone and manage Proxmox VMs')
-    parser.add_argument('--host', help='Proxmox host (default: from env)')
-    parser.add_argument('--port', type=int, help='Proxmox port (default: 8006 for IP, 443 for domain)')
-    parser.add_argument('--token-user', help='API token user (default: from env)')
-    parser.add_argument('--token-secret', help='API token secret (default: from env)')
-    parser.add_argument('--node', help='Proxmox node name (default: from env)')
-    parser.add_argument('--verify-ssl', action='store_true', help='Verify SSL certificate')
 
-    subparsers = parser.add_subparsers(dest='command', help='Command to execute')
+def main():
+    parser = argparse.ArgumentParser(description="Clone and manage Proxmox VMs")
+    parser.add_argument("--host", help="Proxmox host (default: from env)")
+    parser.add_argument(
+        "--port", type=int, help="Proxmox port (default: 8006 for IP, 443 for domain)"
+    )
+    parser.add_argument("--token-user", help="API token user (default: from env)")
+    parser.add_argument("--token-secret", help="API token secret (default: from env)")
+    parser.add_argument("--node", help="Proxmox node name (default: from env)")
+    parser.add_argument(
+        "--verify-ssl", action="store_true", help="Verify SSL certificate"
+    )
+
+    subparsers = parser.add_subparsers(dest="command", help="Command to execute")
 
     # Clone command
-    clone_parser = subparsers.add_parser('clone', help='Clone a VM')
-    clone_parser.add_argument('--template', type=int, help='Template VM ID (default: from env)')
-    clone_parser.add_argument('--id', type=int, required=True, help='New VM ID')
-    clone_parser.add_argument('--name', required=True, help='New VM name')
-    clone_parser.add_argument('--memory', type=int, default=2048, help='Memory in MB (default: 2048)')
-    clone_parser.add_argument('--cores', type=int, default=2, help='Number of CPU cores (default: 2)')
-    clone_parser.add_argument('--disk', help='Disk size (e.g., 32G)')
-    clone_parser.add_argument('--ip', help='IP address with CIDR (e.g., 192.168.86.133/24)')
-    clone_parser.add_argument('--gateway', help='Gateway IP address')
-    clone_parser.add_argument('--nameserver', help='DNS nameserver')
+    clone_parser = subparsers.add_parser("clone", help="Clone a VM")
+    clone_parser.add_argument(
+        "--template", type=int, required=True, help="Template VM ID"
+    )
+    clone_parser.add_argument("--id", type=int, required=True, help="New VM ID")
+    clone_parser.add_argument("--name", required=True, help="New VM name")
+    clone_parser.add_argument(
+        "--memory", type=int, default=2048, help="Memory in MB (default: 2048)"
+    )
+    clone_parser.add_argument(
+        "--cores", type=int, default=2, help="Number of CPU cores (default: 2)"
+    )
+    clone_parser.add_argument("--disk", help="Disk size (e.g., 32G)")
+    clone_parser.add_argument(
+        "--ip", help="IP address with CIDR (e.g., 192.168.86.133/24)"
+    )
+    clone_parser.add_argument("--gateway", help="Gateway IP address")
+    clone_parser.add_argument("--nameserver", help="DNS nameserver")
+    clone_parser.add_argument("--node", help="Proxmox node name (default: from env)")
 
     # Destroy command
-    destroy_parser = subparsers.add_parser('destroy', help='Destroy a VM')
-    destroy_parser.add_argument('--id', type=int, required=True, help='VM ID to destroy')
+    destroy_parser = subparsers.add_parser("destroy", help="Destroy a VM")
+    destroy_parser.add_argument(
+        "--id", type=int, required=True, help="VM ID to destroy"
+    )
+    destroy_parser.add_argument("--node", help="Proxmox node name (default: from env)")
 
     args = parser.parse_args()
 
     # Get credentials from environment or arguments
-    api_host = args.host or os.environ.get('PVE_URL')
-    token_id = args.token_user or os.environ.get('PVE_TOKEN_USER')
-    token_secret = args.token_secret or os.environ.get('PVE_TOKEN_SECRET')
+    api_host = args.host or os.environ.get("PVE_URL")
+    token_id = args.token_user or os.environ.get("PVE_TOKEN_USER")
+    token_secret = args.token_secret or os.environ.get("PVE_TOKEN_SECRET")
 
     if not all([api_host, token_id, token_secret]):
-        print("Error: Missing credentials. Please set environment variables or provide arguments:")
+        print(
+            "Error: Missing credentials. Please set environment variables or provide arguments:"
+        )
         print("  - PVE_URL or --api-host")
         print("  - PVE_TOKEN_USER or --token-user")
         print("  - PVE_TOKEN_SECRET or --token-secret")
@@ -302,31 +345,31 @@ def main():
 
     # Format the API URL - determine port based on whether it's an IP or domain
     api_url = get_api_url(api_host)
-    port = args.port or (8006 if api_url.replace('.', '').isdigit() else 443)
+    port = args.port or (8006 if api_url.replace(".", "").isdigit() else 443)
 
     print(f"Connecting to Proxmox API at {api_url} on port {port}...")
 
     try:
         # Split token parts correctly
-        user_part = token_id.split('!')[0]  # root@pam
-        token_name = token_id.split('!')[1]  # homelab
+        user_part = token_id.split("!")[0]  # root@pam
+        token_name = token_id.split("!")[1]  # homelab
 
         proxmox = ProxmoxAPI(
             api_url,
-            user=user_part,           # root@pam
-            token_name=token_name,    # homelab
+            user=user_part,  # root@pam
+            token_name=token_name,  # homelab
             token_value=token_secret,
             verify_ssl=False,
-            timeout=30,    # Increase connection timeout
-            port=port     # Specify the port explicitly
+            timeout=30,  # Increase connection timeout
+            port=port,  # Specify the port explicitly
         )
     except Exception as e:
         print(f"Error connecting to Proxmox API: {str(e)}")
         sys.exit(1)
 
     # Handle commands
-    if args.command == 'clone':
-        template_id = args.template or 555
+    if args.command == "clone":
+        template_id = args.template
         node = args.node or "pve2"
         success = clone_vm(
             proxmox=proxmox,
@@ -339,13 +382,14 @@ def main():
             disk_size=args.disk,
             ip_address=args.ip,
             gateway=args.gateway,
-            nameserver=args.nameserver
+            nameserver=args.nameserver,
         )
-    elif args.command == 'destroy':
+    elif args.command == "destroy":
         node = args.node or "pve2"
         destroy_vm(proxmox, node, args.id)
     else:
         parser.print_help()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

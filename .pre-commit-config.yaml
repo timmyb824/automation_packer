@@ -1,71 +1,77 @@
 repos:
--   repo: https://gitlab.com/vojko.pribudic.foss/pre-commit-update
+  - repo: https://gitlab.com/vojko.pribudic.foss/pre-commit-update
     rev: v0.6.1
     hooks:
-    -   id: pre-commit-update
+      - id: pre-commit-update
 
--   repo: https://github.com/sourcery-ai/sourcery
+  - repo: https://github.com/sourcery-ai/sourcery
     rev: v1.35.0
     hooks:
-    -   id: sourcery
+      - id: sourcery
         # * review only changed lines:
         # * omit the summary
         args: [--diff=git diff HEAD, --no-summary, ./proxmox/clone-vm.py]
 
--   repo: https://github.com/psf/black
+  - repo: https://github.com/psf/black
     rev: 25.1.0
     hooks:
-    -   id: black
+      - id: black
         language_version: python3
         files: ./proxmox/clone-vm.py
 
--   repo: https://github.com/pycqa/isort
+  - repo: https://github.com/pycqa/isort
     rev: 6.0.1
     hooks:
-    -   id: isort
+      - id: isort
         args: ["--profile", "black"]
         files: ./proxmox/clone-vm.py
 
--   repo: https://github.com/astral-sh/uv-pre-commit
+  - repo: https://github.com/astral-sh/uv-pre-commit
     # uv version.
     rev: 0.6.6
     hooks:
-    -   id: uv-lock
+      - id: uv-lock
         files: ./proxmox
-    -   id: uv-export
+      - id: uv-export
         files: ./proxmox
 
--   repo: https://github.com/pre-commit/pre-commit-hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
-    -   id: check-yaml
+      - id: check-yaml
         args: [--unsafe]
-    -   id: end-of-file-fixer
-    -   id: trailing-whitespace
-    -   id: check-toml
-    -   id: check-added-large-files
-    -   id: check-ast
-    -   id: check-json
-    -   id: check-merge-conflict
-    -   id: check-xml
-    -   id: debug-statements
-    -   id: mixed-line-ending
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-toml
+      - id: check-added-large-files
+      - id: check-ast
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-xml
+      - id: debug-statements
+      - id: mixed-line-ending
 
--   repo: https://github.com/sirwart/ripsecrets
+  - repo: https://github.com/sirwart/ripsecrets
     rev: v0.1.8
     hooks:
-    -   id: ripsecrets
+      - id: ripsecrets
 
--   repo: https://github.com/trufflesecurity/trufflehog
+  - repo: https://github.com/trufflesecurity/trufflehog
     rev: v3.88.17
     hooks:
-    -   id: trufflehog
+      - id: trufflehog
         name: TruffleHog
         description: Detect secrets in your data.
-        entry: bash -c 'trufflehog git file://. --since-commit HEAD --only-verified
+        entry:
+          bash -c 'trufflehog git file://. --since-commit HEAD --only-verified
           --fail'
         language: system
         stages: ["pre-commit"]
+
+  - repo: https://github.com/timmyb824/sops-file-encryption-check
+    rev: 24673eec36a83b93ee33791cbad5c581f31f2133
+    hooks:
+      - id: sops-encryption-check
 
     # Keep getting error about source flag missing so disabling
     # - repo: https://github.com/gitleaks/gitleaks

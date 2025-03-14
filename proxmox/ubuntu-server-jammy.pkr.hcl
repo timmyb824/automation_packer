@@ -35,7 +35,7 @@ source "proxmox-iso" "ubuntu-server-jammy" {
     insecure_skip_tls_verify = true
 
     node = "pve2"
-    vm_id = "555"
+    vm_id = "4203"
     vm_name = "ubuntu-server-jammy"
     template_description = "Ubuntu Server jammy Image - 22.04"
 
